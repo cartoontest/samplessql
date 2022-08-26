@@ -1,21 +1,19 @@
--- создание отношение(таблиц)  – это структура данных целиком,
--- набор записей (в обычном понимании – таблица)
+/* создание отношенией(таблиц)  – это структура данных целиком,
+     набор записей (в обычном понимании – таблица) */
 
 CREATE TABLE book ( 
     book_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(50),
     author VARCHAR(30),
-    price DECIMAL(8, 2), -- перед запятой, после запятой.
+    price DECIMAL(8, 2), -- перед запятой количество цифр, после запятой количество.
     amount INT);
   
 
 -- Добавление параметров в поля:
-
 INSERT INTO book (title, author, price, amount)
 VALUES ('Мастер и Маргарита', 'Булгаков М.А.', 670.99, 3);
 
--- Добавление множество параметров в поля:
-
+-- Добавление множеств параметров в поля:
 INSERT INTO book (title, author, price, amount)
 VALUES 
 ('Белая гвардия', 'Булгаков М.А.', 540.50, 5),
@@ -23,49 +21,43 @@ VALUES
 ('Братья Карамазовы ', 'Достоевский Ф.М.', 799.01, 2);
 SELECT * FROM book;
 
+--
 
-insert into author(name_author)
-values 
+INSERT INTO author(name_author)
+VALUES 
 ('Булгаков М.А.'),
 ('Достоевский Ф.М.'),
 ('Есенин С.А.'),
 ('Пастернак Б.Л.');
+SELECT * FROM author;
 
-select * from author;
 
-
--- Запрос title AS Название:
-
+-- Запрос вывода title AS Название, (alies) :
 SELECT title AS Название, amount 
 FROM book;
 
---ROUND(x, k)	округляет значение x до k знаков после запятой,
--- если k не указано – x округляется до целого
-
+/*  ROUND(x, k)	округляет значение x до k знаков после запятой,
+    Если k не указано – x округляется до целого*/
 ROUND(4.361)=4
 ROUND(5.86592,1)=5.9
 
-SELECT author,
-SUM(price * amount) AS Стоимость,
+-- a sample
+SELECT author, SUM(price * amount) AS Стоимость, 
 ROUND(SUM(price * amount) * (18/100) / (1 + 18/100),2) AS НДС,
 ROUND(SUM(price * amount) / (1 + 18/100),2) AS Стоимость_без_НДС
 FROM book
 GROUP BY author;
 
-
--- Запрос Для упаковки каждой книги требуется один лист бумаги, 
---цена которого 1 рубль 65 копеек. Посчитать стоимость упаковки
--- для каждой книги (сколько денег потребуется, чтобы упаковать все экземпляры книги).
--- В запросе вывести название книги, ее количество и стоимость упаковки, последний столбец назвать pack.
-
-SELECT title, author, price, amount, 
-     price * amount AS total 
+/* Запрос Для упаковки каждой книги требуется один лист бумаги, 
+цена которого 1 рубль 65 копеек. Посчитать стоимость упаковки
+для каждой книги (сколько денег потребуется, чтобы упаковать все экземпляры книги).
+В запросе вывести название книги, ее количество и стоимость упаковки, 
+последний столбец назвать pack.*/
+SELECT title, author, price, amount,  price * amount AS total 
 FROM book;
 
---IF(логическое_выражение, выражение_1, выражение_2)
-
-SELECT title, amount, price, 
-    IF(amount<4, price*0.5, price*0.7) AS sale
+--IF(логическое_выражение, выражение_1, else = выражение_2)
+SELECT title, amount, price, IF(amount<4, price*0.5, price*0.7) AS sale
 FROM book;
 
 --Выборка данных по условию
@@ -83,16 +75,16 @@ SELECT author
 FROM book
 GROUP BY author;
 
--- Посчитать, количество различных книг и количество экземпляров книг каждого автора ,
--- хранящихся на складе. 
-
+/*Посчитать, количество различных книг и количество экземпляров книг каждого автора ,
+  хранящихся на складе */ 
 SELECT author AS Автор, count(amount) AS Различных_книг, sum(amount) AS Количество_экземпляров
 FROM book
 GROUP by author;
 
---К групповым функциям SQL относятся: MIN(), MAX() и AVG() min max avg являются групповыми функциями.
--- необходимо использовать group by, и эти групповые функции будут считать минимальное максимальное 
---или среднее в пределах своей группы
+/*К групповым функциям SQL относятся: MIN(), MAX() и AVG() min max avg являются групповыми функциями.
+необходимо использовать group by, и эти групповые функции будут считать минимальное максимальное 
+или среднее в пределах своей группы*/
+
 SELECT author, 
 MIN(price) AS Минимальная_цена, 
 MAX(price) AS Максимальная_цена, 
@@ -113,26 +105,23 @@ GROUP BY author;
 
 
 
-SELECT author,
-    SUM(price * amount) AS Стоимость
+SELECT author, SUM(price * amount) AS Стоимость
 FROM book
 WHERE title <> 'Идиот' AND title <> 'Белая гвардия'
 GROUP BY author
 HAVING SUM(price * amount) > 5000
 ORDER BY author DESC;
 
---Вывести информацию (автора, название и цену) о тех книгах, 
---цены которых превышают минимальную цену книги на складе не 
---более чем на 150 рублей в отсортированном по возрастанию цены виде
-
+/*Вывести информацию (автора, название и цену) о тех книгах, 
+цены которых превышают минимальную цену книги на складе не 
+более чем на 150 рублей в отсортированном по возрастанию цены виде*/
 SELECT author, title, price
 FROM book
 WHERE price <= (SELECT MIN(price) FROM book) + 150
 ORDER BY price ASC;
 
---Вложенный запрос может возвращать несколько значений одного столбца.
---  Тогда его можно использовать в разделе WHERE совместно с оператором IN.
-
+/*Вложенный запрос может возвращать несколько значений одного столбца.
+Тогда его можно использовать в разделе WHERE совместно с оператором IN*/
 SELECT title, author, amount, price
 FROM book
 WHERE author IN (
@@ -143,25 +132,22 @@ WHERE author IN (
       );
 
 ---------
-
 SELECT *
 FROM Universities
 WHERE Location IN ('Novosibirsk', 'Perm')
 
 --Этот запрос аналогичен:
-
 SELECT *
 FROM Universities
 WHERE Location = 'Novosibirsk' OR Location = 'Perm'
 
---Операторы ANY и ALL используются с предложением WHERE или HAVING.
--- Оператор ANY возвращает true, если какое-либо из значений подзапроса соответствует 
---условию. Оператор ALL возвращает true, если все значения подзапроса удовлетворяют условию.
+/*Операторы ANY и ALL используются с предложением WHERE или HAVING.
+Оператор ANY возвращает true, если какое-либо из значений подзапроса соответствует 
+условию. Оператор ALL возвращает true, если все значения подзапроса удовлетворяют условию*/
 
 
 
 --Добавление записей из другой таблицы
-
 INSERT INTO book (title, author, price, amount) 
 SELECT title, author, price, amount 
 FROM supply;
@@ -169,21 +155,19 @@ FROM supply;
 SELECT * FROM book;
 
 --Добавление записей из другой таблицы
-
 INSERT INTO book (title, author, price, amount) 
 SELECT title, author, price, amount 
 FROM supply
 WHERE author not in ('Булгаков М.А.', 'Достоевский Ф.М.')
 
-'''Изменение записей в таблице реализуется с 
-помощью запроса UPDATE. Простейший запрос на  обновление выглядит так:
-
-        UPDATE таблица SET поле = выражение
+/*Изменение записей в таблице реализуется с 
+  помощью запроса UPDATE. 
+  Простейший запрос на обновление выглядит так: UPDATE таблица SET поле = выражение
 
 где 
 таблица     – имя таблицы, в которой будут проводиться изменения;
 поле        – поле таблицы, в которое будет внесено изменение;
-выражение   – выражение,  значение которого будет занесено в поле.'''
+выражение   – выражение,  значение которого будет занесено в поле*/
 
 UPDATE book 
 SET price = 0.7 * price 
@@ -191,7 +175,6 @@ WHERE amount < 5;
 SELECT * FROM book;
 
 --
-
 UPDATE book 
 SET price = 0.9 * price 
 WHERE amount BETWEEN 5 AND 10;
@@ -202,11 +185,9 @@ SELECT * FROM book;
 UPDATE book 
 SET buy   = IF(buy > amount,amount, buy ),
     price = IF(buy = 0, price * 0.9, price);
-    
 SELECT * FROM book;
 
 --
-
 UPDATE book, supply
 SET book.amount = book.amount + supply.amount,
     book.price =  (book.price + supply.price) / 2
@@ -214,10 +195,9 @@ WHERE book.title = supply.title AND book.author = supply.author;
 SELECT * FROM book;
 
 
---Запросы на удаление
-
---Удалить из таблицы supply все книги, названия которых есть в таблице book.
---Запрос:
+/*Запросы на удаление -
+Удалить из таблицы supply все книги, названия которых есть в таблице book
+Запрос:                                                                     */
 
 DELETE FROM supply 
 WHERE title IN (
@@ -228,8 +208,8 @@ SELECT * FROM supply;
 
 
 ---
-CREATE TABLE ordering AS
-SELECT author, title, 
+CREATE TABLE ordering AS 
+    SELECT author, title, 
    (SELECT ROUND(AVG(amount)) 
     FROM book) AS amount
 FROM book
