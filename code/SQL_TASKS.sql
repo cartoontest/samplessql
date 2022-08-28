@@ -215,11 +215,9 @@ CREATE TABLE ordering AS
 FROM book
 WHERE amount < (SELECT AVG(amount) 
     FROM book);
-
 SELECT * FROM ordering;
 
 --поиск по заданным параметрам LIKE
-
 SELECT name, city, per_diem, date_first, date_last
 FROM trip 
 WHERE name LIKE "%а_____"
@@ -261,14 +259,15 @@ GROUP by city
 ORDER by count(city) DESC
 LIMIT 2;
 
---DATEDIFF(дата_1, дата_2), результатом которой является количество дней между дата_1 и дата_2. Например,
+/*DATEDIFF(дата_1, дата_2), результатом которой является 
+количество дней между дата_1 и дата_2. Например:    */
+
 SELECT name, city, DATEDIFF(date_last, date_first) + 1 AS Длительность
 FROM trip 
 WHERE city NOT IN('Санкт-Петербург', 'Москва') 
 ORDER BY Длительность DESC
 
 --Вывести информацию о командировках сотрудника(ов), которые были самыми короткими по времени.
-
 SELECT name, city, date_first, date_last
 FROM trip
 WHERE DATEDIFF(date_last, date_first) = (SELECT min(DATEDIFF(date_last, date_first))FROM trip);
@@ -558,3 +557,24 @@ WHERE genre.genre_id IN
           ON query_in_1.sum_amount= query_in_2.sum_amount
          )
 ORDER BY title;
+
+
+
+SELECT title, name_author, author.author_id /* явно указать таблицу - обязательно */
+FROM 
+    author INNER JOIN book
+    ON author.author_id = book.author_id;
+
+--Вариант с USING
+SELECT title, name_author, author_id /* имя таблицы, из которой берется author_id, указывать не обязательно*/
+FROM 
+    author INNER JOIN book
+    USING(author_id);
+
+
+
+SELECT book.title AS Название, author.name_author AS Автор, supply.amount + book.amount AS Количество
+FROM book JOIN author USING (author_id)
+          JOIN supply ON book.title = supply.title
+                     AND supply.price = book.price
+/* WHERE supply.price = book.price */
