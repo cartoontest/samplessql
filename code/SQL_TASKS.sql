@@ -374,7 +374,10 @@ AND fine.violation = payment.violation
 AND fine.number_plate = payment.number_plate; -- без точки с запятой - ошибка.
 SELECT * FROM fine;
 
-
+/*Новая таблица может быть создана на основе данных из другой таблицы.
+Для этого используется запрос SELECT, результирующая таблица которого
+и будет новой таблицей базы данных. При этом имена столбцов 
+запроса становятся именами столбцов новой таблицы. Запрос на создание новой таблицы имеет вид:*/
 CREATE TABLE back_payment AS
 SELECT name, number_plate, violation, sum_fine, date_violation
 FROM fine
@@ -451,7 +454,6 @@ SELECT * FROM book;
 
 
 --my First JOIN 
-
 SELECT title, name_genre, price 
 FROM
     book INNER JOIN genre
@@ -578,3 +580,429 @@ FROM book JOIN author USING (author_id)
           JOIN supply ON book.title = supply.title
                      AND supply.price = book.price
 /* WHERE supply.price = book.price */
+
+
+--Запросы на обновление, связанные таблицы
+
+UPDATE book 
+     INNER JOIN author ON author.author_id = book.author_id
+     INNER JOIN supply ON book.title = supply.title 
+                         and supply.author = author.name_author
+SET book.amount = book.amount + supply.amount,
+    supply.amount = 0   
+WHERE book.price = supply.price;
+
+SELECT * FROM book;
+
+SELECT * FROM supply;
+
+--
+
+UPDATE book 
+     INNER JOIN author ON author.author_id = book.author_id
+     INNER JOIN supply ON book.title = supply.title 
+                         and supply.author = author.name_author
+SET book.amount = book.amount + supply.amount,
+    book.price =  ((book.price * book.amount) + (supply.price * supply.amount))/(book.amount + supply.amount), -- не забываем запятые и скобки
+    supply.amount = 0 
+    
+WHERE book.price <> supply.price;
+
+SELECT * FROM book;
+
+SELECT * FROM supply;
+
+
+--Запросы на добавление, связанные таблицы (values не указываем")
+INSERT INTO author(name_author)
+SELECT supply.author 
+    FROM author RIGHT JOIN supply ON author.name_author = supply.author
+WHERE name_author IS Null;
+
+SELECT * FROM author;
+
+--
+INSERT INTO book(title, author_id, price, amount)
+SELECT title, author_id, price, amount
+FROM 
+    author 
+    INNER JOIN supply ON author.name_author = supply.author
+WHERE amount <> 0;
+
+SELECT * FROM book;
+
+
+/*Пример
+Задать для книги Пастернака «Доктор Живаго»  жанр «Роман».
+Если мы знаем код этой книги в таблице book (в нашем случае это 9)
+ и код жанра «Роман» в таблице genre (это 1), запрос будет очень простым.*/
+
+UPDATE book
+SET genre_id = 1
+WHERE book_id = 9;
+
+SELECT * FROM book;
+
+
+--Более сложным будет запрос, если известно только название жанра (результат будет точно таким же):
+UPDATE book
+SET genre_id = 
+      (
+       SELECT genre_id 
+       FROM genre 
+       WHERE name_genre = 'Роман'
+      )
+WHERE book_id = 9;
+
+SELECT * FROM book;
+
+/*Действия при удалении записи главной таблицы
+С помощью выражения ON DELETE можно установить действия, которые выполняются для записей подчиненной таблицы при удалении связанной строки из главной таблицы. При удалении можно установить следующие опции:
+
+CASCADE: автоматически удаляет строки из зависимой таблицы при удалении  связанных строк в главной таблице.
+SET NULL: при удалении  связанной строки из главной таблицы устанавливает для столбца внешнего ключа значение NULL. (В этом случае столбец внешнего ключа должен поддерживать установку NULL).
+SET DEFAULT похоже на SET NULL за тем исключением, что значение  внешнего ключа устанавливается не в NULL, а в значение по умолчанию для данного столбца.
+RESTRICT: отклоняет удаление строк в главной таблице при наличии связанных строк в зависимой таблице.
+Важно! Если для столбца установлена опция SET NULL, то при его описании нельзя задать ограничение на пустое значение.
+*/
+
+CREATE TABLE book (
+    book_id INT PRIMARY KEY AUTO_INCREMENT, 
+    title VARCHAR(50), 
+    author_id INT NOT NULL, 
+    genre_id INT,
+    price DECIMAL(8,2), 
+    amount INT, 
+    FOREIGN KEY (author_id)  REFERENCES author (author_id) ON DELETE CASCADE,
+    FOREIGN KEY (genre_id)  REFERENCES genre (genre_id) ON DELETE SET NULL
+);
+
+
+
+/*
+При создании таблицы для внешних ключей с помощью ON DELETE устанавливаются опции,
+которые определяют действия , выполняемые при удалении связанной строки из главной таблицы.
+В частности, ON DELETE CASCADE автоматически удаляет строки из зависимой таблицы при удалении
+связанных строк в главной таблице.
+
+--В таблице book эта опция установлена для поля author_id.*/
+DELETE FROM author
+WHERE author_id IN
+(
+SELECT author_id
+FROM 
+    book 
+GROUP BY author_id
+HAVING sum(amount) < 20
+);
+
+SELECT * FROM author;
+SELECT * FROM book;
+
+
+/*Удалим из таблицы genre все  жанры, название которых заканчиваются на «я» , а в таблице book  -  для этих жанров установим значение Null.
+Запрос:*/
+DELETE FROM genre
+WHERE name_genre LIKE "%я";
+
+SELECT * FROM genre;
+
+SELECT * FROM book;
+
+
+
+/*Запросы на основе трех и более связанных таблиц
+Пример
+Вывести фамилии всех клиентов, которые заказали книгу Булгакова «Мастер и Маргарита»*/
+SELECT buy.buy_id, title, price, buy_book.amount 
+FROM 
+    client 
+    INNER JOIN buy ON client.client_id = buy.client_id
+    INNER JOIN buy_book ON buy_book.buy_id = buy.buy_id
+    INNER JOIN book ON buy_book.book_id=book.book_id
+WHERE name_client = "Баранов Павел"
+ORDER BY buy_id, title
+
+
+/*Задание 
+Вывести города, в которых живут клиенты, оформлявшие заказы в интернет-магазине.
+Указать количество заказов в каждый город, этот столбец назвать Количество. 
+Информацию вывести по убыванию количества заказов, 
+а затем в алфавитном порядке по названию городов.*/
+SELECT name_city, count(buy_id) AS Количество
+FROM city         
+    JOIN client USING (city_id)
+    JOIN buy USING (client_id)
+GROUP BY name_city
+ORDER BY name_city
+
+/*Задание
+Вывести номера всех оплаченных заказов и даты, когда они были оплачены.*/
+SELECT buy_id, date_step_end
+FROM step 
+    JOIN buy_step USING (step_id)
+WHERE step_id = 1 AND date_step_end IS NOT NULL;
+
+/*Задание
+Вывести информацию о каждом заказе: его номер, кто его сформировал 
+(фамилия пользователя) и его стоимость (сумма произведений количества заказанных книг и их цены), 
+в отсортированном по номеру заказа виде. Последний столбец назвать Стоимость*/
+SELECT buy_id, name_client, SUM(book.price * buy_book.amount) AS Стоимость
+FROM book
+     JOIN buy_book USING (book_id) 
+     JOIN buy USING (buy_id)
+     JOIN client USING (client_id)
+GROUP BY buy_book.buy_id
+ORDER BY buy_id
+
+/*Задание
+Вывести номера заказов (buy_id) и названия этапов,  на которых они в данный момент находятся.
+Если заказ доставлен –  
+информацию о нем не выводить. Информацию отсортировать по возрастанию buy_id.*/
+SELECT buy_id, name_step
+FROM step INNER JOIN buy_step ON step.step_id = buy_step.step_id
+WHERE date_step_beg IS NOT NULL AND date_step_end IS NULL
+ORDER BY buy_id;
+
+
+
+/*Задание
+В таблице city для каждого города указано количество дней, за которые заказ может быть доставлен в
+этот город (рассматривается только этап Транспортировка). Для тех заказов, которые прошли этап 
+транспортировки, вывести количество дней за которое заказ реально доставлен в город. А также, 
+если заказ доставлен с опозданием, указать количество дней задержки, в противном случае вывести 0.
+В результат включить номер заказа (buy_id), а также вычисляемые столбцы Количество_дней и Опоздание. 
+Информацию вывести в отсортированном по номеру заказа виде.*/
+
+SELECT buy_id, DATEDIFF(date_step_end, date_step_beg) AS Количество_дней,
+IF(DATEDIFF(date_step_end, date_step_beg) > days_delivery, DATEDIFF(date_step_end, date_step_beg)-days_delivery, 0) AS Опоздание 
+FROM city
+     JOIN client USING (city_id)
+     JOIN buy USING (client_id)
+     JOIN buy_step USING (buy_id) 
+     JOIN step USING (step_id)
+WHERE name_step = "Транспортировка" AND DATEDIFF(date_step_end, date_step_beg) IS NOT NULL;
+
+
+
+/*Задание
+Вывести жанр (или жанры), в котором было заказано больше всего экземпляров книг,
+указать это количество. Последний столбец назвать Количество*/
+SELECT name_genre, SUM(buy_book.amount) AS Количество
+    FROM genre
+    JOIN book USING (genre_id)
+    JOIN buy_book USING (book_id)
+    GROUP BY genre_id
+    HAVING sum(buy_book.amount) =  
+                (SELECT MAX(sum_amount) AS max_amount /* вычисляем максимальное из общего количества книг каждого автора */
+                FROM 
+                (SELECT sum(buy_book.amount) AS sum_amount /* считаем количество книг каждого автора */
+                FROM buy_book JOIN book USING (book_id)
+                GROUP BY genre_id
+                )query_in );
+
+
+/*Пример UNION
+Вывести всех клиентов, которые делали заказы или в этом, или в предыдущем году.
+На этом примере рассмотрим разницу между UNION и UNION ALL.
+С UNION клиенты будут выведены без повторений:*/
+
+SELECT name_client
+FROM 
+    buy_archive
+    INNER JOIN client USING(client_id)
+UNION
+SELECT name_client
+FROM 
+    buy 
+    INNER JOIN client USING(client_id)
++-----------------+
+| name_client     |
++-----------------+
+| Баранов Павел   |
+| Абрамова Катя   |
+| Яковлева Галина |
+| Семенонов Иван  |
++-----------------+
+Affected rows: 4
+C UNION ALL будут выведены клиенты с повторением (для тех, кто заказывал книги в обоих годах, а также несколько раз в одном году)
+
+SELECT name_client
+FROM 
+    buy_archive
+    INNER JOIN client USING(client_id)
+UNION ALL
+SELECT name_client
+FROM 
+    buy 
+    INNER JOIN client USING(client_id)
++-----------------+
+| name_client     |
++-----------------+
+| Баранов Павел   |
+| Баранов Павел   |
+| Абрамова Катя   |
+| Абрамова Катя   |
+| Абрамова Катя   |
+| Яковлева Галина |
+| Яковлева Галина |
+| Баранов Павел   |
+| Абрамова Катя   |
+| Абрамова Катя   |
+| Баранов Павел   |
+| Баранов Павел   |
+| Абрамова Катя   |
+| Семенонов Иван  |
++-----------------+
+Affected rows: 14
+
+
+/*Сравнить ежемесячную выручку от продажи книг за текущий и предыдущий годы. 
+Для этого вывести год, месяц, сумму выручки в отсортированном сначала по возрастанию месяцев,
+затем по возрастанию лет виде. Название столбцов: Год, Месяц, Сумма.
+пример группировки с UNION!*/
+SELECT YEAR(date_payment) AS Год, MONTHNAME(date_payment) AS Месяц, sum(amount * price) AS Сумма
+FROM 
+    buy_archive
+GROUP BY 1, 2    
+UNION ALL
+
+SELECT YEAR(date_step_end), MONTHNAME(date_step_end) AS Месяц, sum(buy_book.amount * book.price)
+FROM 
+    book 
+    INNER JOIN buy_book USING(book_id)
+    INNER JOIN buy USING(buy_id) 
+    INNER JOIN buy_step USING(buy_id)
+    INNER JOIN step USING(step_id)    
+
+WHERE  date_step_end IS NOT Null and name_step = "Оплата"
+GROUP BY 1, 2
+ORDER BY 2, 1 
+
+Query result:
++------+----------+---------+
+| Год  | Месяц    | Сумма   |
++------+----------+---------+
+| 2019 | February | 5626.30 |
+| 2020 | February | 3309.37 |
+| 2019 | March    | 6857.50 |
+| 2020 | March    | 2131.49 |
++------+----------+---------+
+Affected rows: 4
+
+
+/*!!Запросы с UNION можно использовать как вложенные, 
+это позволяет обрабатывать данные из объединенных запросов совместно!!.
+
+--
+Для каждой отдельной книги необходимо вывести информацию о количестве проданных экземпляров 
+и их стоимости за текущий и предыдущий год . 
+Вычисляемые столбцы назвать Количество и Сумма. Информацию отсортировать по убыванию стоимости.*/
+SELECT title, SUM(Количество) Количество, SUM(Сумма) Сумма
+FROM
+      (
+SELECT book.title, SUM(buy_archive.amount) AS Количество, SUM(buy_archive.amount * buy_archive.price) AS Сумма
+       FROM   
+       buy_archive 
+       INNER JOIN book USING(book_id)
+       GROUP BY title     
+UNION ALL
+       SELECT book.title, buy_book.amount, buy_book.amount * book.price
+        FROM 
+        book 
+        INNER JOIN buy_book USING(book_id)
+        INNER JOIN buy USING(buy_id) 
+        INNER JOIN buy_step USING(buy_id)
+        INNER JOIN step USING(step_id)     
+        WHERE buy_step.step_id = 1 AND buy_step.date_step_end IS NOT NULL
+       ) query_in
+       GROUP BY title
+       ORDER BY Сумма DESC
+
+/*
+1. В запросах на добавление можно одновременно заносить и
+константы, и данные из других таблиц. Для этого в той части запроса INSERT , 
+где задается запрос на выборку, в качестве полей для вставки указываются
+ не только поля других таблиц, но и  константы:*/
+INSERT INTO client(name_client, city_id, email) 
+SELECT 'Попов Илья', city.city_id, 'popov@test'
+FROM city
+WHERE name_city='Москва';
+select * from client;
+
+Affected rows: 1
+
+Query result:
++-----------+-----------------+---------+----------------+
+| client_id | name_client     | city_id | email          |
++-----------+-----------------+---------+----------------+
+| 1         | Баранов Павел   | 3       | baranov@test   |
+| 2         | Абрамова Катя   | 1       | abramova@test  |
+| 3         | Семенонов Иван  | 2       | semenov@test   |
+| 4         | Яковлева Галина | 1       | yakovleva@test |
+| 5         | Попов Илья      | 1       | popov@test     |
++-----------+-----------------+---------+----------------+
+Affected rows: 5
+
+
+---
+INSERT INTO buy_book (buy_id, book_id, amount)
+SELECT 5, book_id, 2
+FROM book
+WHERE title = "Лирика";
+INSERT INTO buy_book (buy_id, book_id, amount)
+SELECT 5, book_id, 1
+FROM book
+WHERE title = "Белая гвардия";
+SELECT * FROM buy_book;
+
+INSERT INTO buy_book (buy_id, book_id, amount)
+SELECT 5, book_id, 2
+FROM book
+WHERE title = "Лирика";
+INSERT INTO buy_book (buy_id, book_id, amount)
+SELECT 5, book_id, 1
+FROM book
+WHERE title = "Белая гвардия";
+SELECT * FROM buy_book;
+
+
+/*Создать счет (таблицу buy_pay) на оплату заказа с номером 5,
+в который включить название книг, их автора, цену,
+количество заказанных книг и  стоимость. 
+Последний столбец назвать Стоимость.
+Информацию в таблицу занести в отсортированном
+ по названиям книг виде.*/
+
+CREATE TABLE buy_pay AS 
+SELECT title, name_author, price, buy_book.amount, buy_book.amount * price AS стоимость
+FROM book JOIN author USING (author_id)
+          JOIN buy_book USING (book_id)
+WHERE buy_id = 5 
+ORDER BY 1;
+SELECT * FROM buy_pay;
+
+--
+
+CREATE TABLE buy_pay AS 
+SELECT buy_id, SUM(buy_book.amount) AS Количество, SUM(book.price * buy_book.amount) AS Итого
+FROM book JOIN buy_book USING (book_id)
+WHERE buy_id = 5;
+SELECT * FROM buy_pay;
+
+
+
+В таблицу buy_step занести дату 12.04.2020 выставления счета на оплату заказа с номером 5.
+
+/*Правильнее было бы занести не конкретную, а текущую дату. 
+Это можно сделать с помощью функции Now(). Но при этом 
+в разные дни будут вставляться разная дата, 
+и задание нельзя будет проверить, поэтому  вставим дату 12.04.2020.*/
+UPDATE buy_step 
+        JOIN step USING(step_id) 
+SET date_step_beg = "2020-04-12"
+WHERE name_step="Оплата" AND buy_id = 5;
+
+SELECT *
+FROM buy_step
+WHERE buy_id = 5
